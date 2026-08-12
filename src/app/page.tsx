@@ -1,52 +1,59 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import CreneauxTicker, { type Slot } from "@/components/CreneauxTicker";
+import InstagramFeed from "@/components/InstagramFeed";
+import { getActualites, formatDate } from "@/lib/actualites";
 
-const NEWS = [
-  {
-    date: "04 JUIL",
-    title: "🎉 Fête du Club",
-    excerpt:
-      "De 10h à 19h au STAPS de Nice : remise des trophées, assemblée générale, matchs et animations jeunes.",
-  },
-  {
-    date: "JUIN",
-    title: "Bienvenue sur l'application du CBN",
-    excerpt:
-      "Le club se dote d'un nouvel outil pour rester connecté toute la saison — cette refonte du site en est la suite directe.",
-  },
-  {
-    date: "15–20 JUIN",
-    title: "La Semaine de la Convivialité",
-    excerpt:
-      "Une semaine d'animations et de moments partagés entre membres, tous niveaux confondus.",
-  },
-];
+export const revalidate = 60;
 
-const PRATIQUE = [
-  { label: "Lieu", value: "8 salles à Nice" },
-  { label: "Créneaux", value: "7j/7 selon les salles" },
-  { label: "Cotisation", value: "Dès 209€ / saison" },
-];
+const JOUR_ORDER = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+
+function firstJourIndex(jour: string): number {
+  const found = JOUR_ORDER.findIndex((j) => jour.includes(j));
+  return found === -1 ? JOUR_ORDER.length : found;
+}
+
+async function getPratique() {
+  const [{ count: nbSalles }, { data: tarifs }] = await Promise.all([
+    supabase.from("salles").select("*", { count: "exact", head: true }),
+    supabase.from("tarifs").select("montant").eq("type", "formule"),
+  ]);
+
+  const montants = (tarifs ?? [])
+    .map((t) => Number(t.montant.replace(/[^\d]/g, "")))
+    .filter((n) => !Number.isNaN(n) && n > 0);
+  const minTarif = montants.length ? Math.min(...montants) : null;
+
+  return [
+    { label: "Lieu", value: nbSalles ? `${nbSalles} salles à Nice` : "Plusieurs salles à Nice" },
+    { label: "Créneaux", value: "7j/7 selon les salles" },
+    { label: "Cotisation", value: minTarif ? `Dès ${minTarif}€ / saison` : "Voir infos pratiques" },
+  ];
+}
 
 async function getSlots(): Promise<Slot[]> {
   const { data, error } = await supabase
     .from("creneaux")
-    .select("jour, horaire, niveau, salles(nom)")
-    .order("jour");
+    .select("jour, horaire, niveau, salles(nom)");
 
   if (error || !data) return [];
 
-  return data.map((c) => ({
-    salle: (c.salles as unknown as { nom: string } | null)?.nom ?? "",
-    jour: c.jour,
-    horaire: c.horaire,
-    niveau: c.niveau,
-  }));
+  return data
+    .map((c) => ({
+      salle: (c.salles as unknown as { nom: string } | null)?.nom ?? "",
+      jour: c.jour,
+      horaire: c.horaire,
+      niveau: c.niveau,
+    }))
+    .sort(
+      (a, b) =>
+        firstJourIndex(a.jour) - firstJourIndex(b.jour) ||
+        a.horaire.localeCompare(b.horaire)
+    );
 }
 
 export default async function Home() {
-  const slots = await getSlots();
+  const [slots, news, pratique] = await Promise.all([getSlots(), getActualites(3), getPratique()]);
 
   return (
     <>
@@ -57,19 +64,18 @@ export default async function Home() {
             Club de Badminton de Nice · Saison 2026 / 2027
           </p>
           <h1 className="mt-6 max-w-3xl font-display text-4xl font-extrabold leading-[1.05] tracking-tight md:text-6xl">
-            Le badminton niçois,
+            Bienvenue au Club
             <br />
-            organisé comme il le mérite.
+            Badminton Nice.
           </h1>
           <p className="mt-6 max-w-xl text-base leading-relaxed text-feather/70 md:text-lg">
-            Créneaux, cotisation, compétitions et vie du club au même endroit —
-            fini les PDF perdus et les rappels sur trois canaux différents.
+            Créneaux, infos, compétitions et vie du club ici.
           </p>
 
           <div className="mt-9 flex flex-wrap gap-4">
             <Link
               href="/rejoindre"
-              className="inline-flex items-center rounded-sm bg-red px-6 py-3.5 text-sm font-semibold text-ink-deep transition-colors hover:bg-red-deep"
+              className="inline-flex items-center rounded-sm bg-red px-6 py-3.5 text-sm font-semibold text-feather transition-colors hover:bg-red-deep"
             >
               Devenir membre
             </Link>
@@ -122,21 +128,23 @@ export default async function Home() {
         </div>
 
         <div className="mt-10 grid gap-px overflow-hidden rounded-sm border border-ink/10 bg-ink/10 md:grid-cols-3">
-          {NEWS.map((item) => (
-            <article key={item.title} className="bg-feather p-7">
+          {news.map((item) => (
+            <article key={item.titre} className="bg-feather p-7">
               <p className="font-mono text-xs uppercase tracking-widest text-red-deep">
-                {item.date}
+                {formatDate(item.date_debut, item.date_fin, false)}
               </p>
               <h3 className="mt-3 font-display text-lg font-bold text-ink">
-                {item.title}
+                {item.titre}
               </h3>
               <p className="mt-3 text-sm leading-relaxed text-ink/65">
-                {item.excerpt}
+                {item.extrait}
               </p>
             </article>
           ))}
         </div>
       </section>
+
+      <InstagramFeed />
 
       <div className="mx-auto max-w-6xl px-6">
         <div className="court-rule" />
@@ -152,7 +160,7 @@ export default async function Home() {
         </h2>
 
         <div className="mt-10 grid gap-6 sm:grid-cols-3">
-          {PRATIQUE.map((item) => (
+          {pratique.map((item) => (
             <div key={item.label} className="border-l-2 border-red pl-5">
               <p className="text-xs uppercase tracking-widest text-ink/45">
                 {item.label}
@@ -183,8 +191,8 @@ export default async function Home() {
           </h2>
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-ink/65">
             Fini les relances par SMS et les tableurs partagés. L'espace
-            membre du CBN centralise votre cotisation, vos réservations et vos
-            achats — et vous prévient là où vous êtes déjà : sur WhatsApp.
+            membre du CBN centralise votre cotisation et vos achats — et vous
+            prévient là où vous êtes déjà : sur WhatsApp.
           </p>
 
           <div className="mt-10 grid gap-px overflow-hidden rounded-sm border border-ink/10 bg-ink/10 sm:grid-cols-3">

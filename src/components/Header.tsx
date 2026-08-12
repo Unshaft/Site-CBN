@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
+import { useAdmin } from "@/lib/useAdmin";
 
 const NAV_LINKS = [
   { href: "/vie-du-club", label: "Vie du club" },
@@ -13,6 +14,8 @@ const NAV_LINKS = [
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const admin = useAdmin();
+  const isAdmin = admin.status === "authorized";
 
   return (
     <header className="sticky top-0 z-50 bg-feather/95 backdrop-blur">
@@ -41,6 +44,14 @@ export default function Header() {
               {link.label}
             </Link>
           ))}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="text-sm font-medium uppercase tracking-wide text-red-deep transition-colors hover:text-red"
+            >
+              Admin
+            </Link>
+          )}
         </nav>
 
         <div className="hidden md:block">
@@ -82,6 +93,15 @@ export default function Header() {
               {link.label}
             </Link>
           ))}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              onClick={() => setOpen(false)}
+              className="py-2.5 text-base font-medium text-red-deep"
+            >
+              Admin
+            </Link>
+          )}
           <Link
             href="/rejoindre"
             onClick={() => setOpen(false)}

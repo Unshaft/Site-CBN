@@ -1,23 +1,22 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { supabase } from "@/lib/supabase";
 
 export const metadata: Metadata = { title: "Infos pratiques · CBN" };
+export const revalidate = 60;
 
-const TARIFS = [
-  { formule: "Jeunes", prix: "259 €", detail: "Minibad à Junior · licence FFBaD + encadrement inclus" },
-  { formule: "Loisir — 1ère inscription", prix: "259 €", detail: "Adulte · licence FFBaD incluse" },
-  { formule: "Loisir — renouvellement", prix: "209 €", detail: "Adulte déjà licencié au club" },
-  { formule: "Compétiteur", prix: "279 €", detail: "Adulte · interclubs & tournois, licence incluse" },
-];
+async function getTarifs() {
+  const { data } = await supabase.from("tarifs").select("*").order("ordre");
+  const rows = data ?? [];
+  return {
+    formules: rows.filter((t) => t.type === "formule"),
+    reductions: rows.filter((t) => t.type === "reduction"),
+  };
+}
 
-const REDUCTIONS = [
-  { label: "e-pass jeunes", montant: "−20 €" },
-  { label: "Réduction famille", montant: "−15 €" },
-  { label: "Pass'Sport", montant: "−70 €" },
-  { label: "Deuxième entraînement hebdo", montant: "+50 €" },
-];
+export default async function InfosPratiques() {
+  const { formules, reductions } = await getTarifs();
 
-export default function InfosPratiques() {
   return (
     <div className="mx-auto max-w-4xl px-6 py-16 md:py-24">
       <p className="font-mono text-xs uppercase tracking-[0.2em] text-red-deep">
@@ -47,10 +46,10 @@ export default function InfosPratiques() {
           Cotisation {new Date().getFullYear()}/{new Date().getFullYear() + 1}
         </h2>
         <div className="mt-6 grid gap-6 sm:grid-cols-2">
-          {TARIFS.map((t) => (
-            <div key={t.formule} className="border-l-2 border-red pl-5">
-              <p className="text-xs uppercase tracking-widest text-ink/45">{t.formule}</p>
-              <p className="mt-2 font-display text-2xl font-bold text-ink">{t.prix}</p>
+          {formules.map((t) => (
+            <div key={t.id} className="border-l-2 border-red pl-5">
+              <p className="text-xs uppercase tracking-widest text-ink/45">{t.label}</p>
+              <p className="mt-2 font-display text-2xl font-bold text-ink">{t.montant}</p>
               <p className="mt-1 text-sm text-ink/55">{t.detail}</p>
             </div>
           ))}
@@ -61,8 +60,8 @@ export default function InfosPratiques() {
             Réductions cumulables
           </p>
           <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-            {REDUCTIONS.map((r) => (
-              <li key={r.label} className="flex justify-between text-sm text-ink/65">
+            {reductions.map((r) => (
+              <li key={r.id} className="flex justify-between text-sm text-ink/65">
                 <span>{r.label}</span>
                 <span className="font-mono font-semibold text-ink">{r.montant}</span>
               </li>

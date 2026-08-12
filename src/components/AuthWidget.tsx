@@ -24,6 +24,8 @@ export default function AuthWidget() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [prenom, setPrenom] = useState("");
   const [nom, setNom] = useState("");
+  const [claimCode, setClaimCode] = useState("");
+  const [showClaimCode, setShowClaimCode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -91,7 +93,13 @@ export default function AuthWidget() {
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { prenom: prenom.trim(), nom: nom.trim() } },
+        options: {
+          data: {
+            prenom: prenom.trim(),
+            nom: nom.trim(),
+            claim_code: claimCode.trim() || null,
+          },
+        },
       });
       setSubmitting(false);
 
@@ -218,6 +226,25 @@ export default function AuthWidget() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               autoComplete="new-password"
+              className="w-full rounded-sm border border-ink/15 px-3 py-2 text-sm"
+            />
+          )}
+
+          {mode === "signup" && !showClaimCode && (
+            <button
+              type="button"
+              onClick={() => setShowClaimCode(true)}
+              className="block text-sm text-ink/50 underline decoration-ink/20 underline-offset-4"
+            >
+              Un parent t&apos;a donné un code pour récupérer ton profil ?
+            </button>
+          )}
+          {mode === "signup" && showClaimCode && (
+            <input
+              type="text"
+              placeholder="Code de rattachement"
+              value={claimCode}
+              onChange={(e) => setClaimCode(e.target.value)}
               className="w-full rounded-sm border border-ink/15 px-3 py-2 text-sm"
             />
           )}
