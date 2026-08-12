@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
+import CreneauxTicker, { type Slot } from "@/components/CreneauxTicker";
 
 const NEWS = [
   {
@@ -27,7 +29,25 @@ const PRATIQUE = [
   { label: "Cotisation", value: "Dès 209€ / saison" },
 ];
 
-export default function Home() {
+async function getSlots(): Promise<Slot[]> {
+  const { data, error } = await supabase
+    .from("creneaux")
+    .select("jour, horaire, niveau, salles(nom)")
+    .order("jour");
+
+  if (error || !data) return [];
+
+  return data.map((c) => ({
+    salle: (c.salles as unknown as { nom: string } | null)?.nom ?? "",
+    jour: c.jour,
+    horaire: c.horaire,
+    niveau: c.niveau,
+  }));
+}
+
+export default async function Home() {
+  const slots = await getSlots();
+
   return (
     <>
       {/* Hero */}
@@ -61,27 +81,7 @@ export default function Home() {
             </Link>
           </div>
 
-          {/* Scoreboard strip */}
-          <div className="mt-16 grid gap-px overflow-hidden rounded-sm border border-feather/15 bg-feather/15 sm:grid-cols-3">
-            <div className="bg-ink px-6 py-5">
-              <p className="font-mono text-[11px] uppercase tracking-widest text-feather/50">
-                Prochain entraînement
-              </p>
-              <p className="mt-2 font-mono text-xl text-feather">Jeu. 20h00</p>
-            </div>
-            <div className="bg-ink px-6 py-5">
-              <p className="font-mono text-[11px] uppercase tracking-widest text-feather/50">
-                Places restantes
-              </p>
-              <p className="mt-2 font-mono text-xl text-red">6 / 20</p>
-            </div>
-            <div className="bg-ink px-6 py-5">
-              <p className="font-mono text-[11px] uppercase tracking-widest text-feather/50">
-                Membres à jour
-              </p>
-              <p className="mt-2 font-mono text-xl text-feather">118</p>
-            </div>
-          </div>
+          <CreneauxTicker slots={slots} />
         </div>
 
         {/* Signature: shuttle flight-arc divider */}

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import AuthWidget from "@/components/AuthWidget";
 
 export const metadata: Metadata = { title: "Espace membre · CBN" };
 
@@ -49,6 +50,8 @@ export default function EspaceMembre() {
         Voici les chantiers prévus pour cette saison, dans l'ordre où ils
         arriveront.
       </p>
+
+      <AuthWidget />
 
       <ol className="mt-14 divide-y divide-ink/10 border-y border-ink/10">
         {CHANTIERS.map((c) => (
